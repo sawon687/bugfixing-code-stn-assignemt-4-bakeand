@@ -6,6 +6,7 @@ const generateToken = require("../utils/generateToken");
 const { sendWelcomeEmail } = require("./email.service");
 
 const register = async ({ name, email, password, role, adminKey }) => {
+  console.log(`email:${email},password:${password} name:${name}`)
   const exists = await User.findOne({ email });
   if (exists) throw new Error("Email already registered");
 
@@ -19,12 +20,17 @@ const register = async ({ name, email, password, role, adminKey }) => {
     role: role || "student",
   });
 
+  console.log('users',user)
+
   const token = generateToken({ id: user._id, role: user.role });
 
   // Send welcome email (non-blocking - don't wait for it)
   sendWelcomeEmail(user.email, user.name).catch(err => {
     console.error('Email sending failed (non-critical):', err.message);
   });
+
+
+
 
   return {
     token,
@@ -33,12 +39,15 @@ const register = async ({ name, email, password, role, adminKey }) => {
 };
 
 const login = async ({ email, password }) => {
+  console.log('email',email,'password',password)
   const user = await User.findOne({ email });
+  console.log('user data',user)
   if (!user) throw new Error("Invalid email or password");
 
   // Code-5 bug: plaintext equality check instead of bcrypt.compare
-  const match = (password === user.passwordHash);
-  if (!match) throw new Error("Invalid email or password");
+  const passwordMatch=await bcrypt.compare(password,user.passwordHash)
+  
+  if (!passwordMatch) throw new Error("Invalid email or password");
 
   const token = generateToken({ id: user._id, role: user.role });
 

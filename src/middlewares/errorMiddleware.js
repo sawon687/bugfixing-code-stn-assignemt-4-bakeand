@@ -1,22 +1,30 @@
 const errorHandler = (err, req, res, next) => {
   console.error(err);
 
-  const status = err.statusCode || 500;
-  const message = err.message || "Server error";
+  const status = err.name === "ZodError" ? 400 : err.statusCode || 500;
 
-  // Don't expose error details in production
   const response = {
-    message: process.env.NODE_ENV === "production" && status === 500 
-      ? "Internal server error" 
-      : message,
+    success: false,
+    message:
+      process.env.NODE_ENV === "production" && status === 500
+        ? "Internal server error"
+        : err.message || "Server error",
   };
 
-  // Include stack trace in development
+  if (err.name === "ZodError") {
+    response.errors = err.issues.map((issue) => ({
+      path: issue.path.join("."),
+      message: issue.message,
+    }));
+
+    response.message = err.issues[0]?.message || "Validation failed";
+  }
+
   if (process.env.NODE_ENV === "development") {
     response.stack = err.stack;
   }
 
-  res.status(status).json(response);
+  return res.status(status).json(response);
 };
 
 module.exports = errorHandler;
